@@ -1,0 +1,128 @@
+from typing import List, Tuple
+import sys
+
+def nim_sum(piles: List[int]) -> int:
+    x = 0
+    for p in piles:
+        x ^= p
+    return x
+
+def ai_move_optimal(piles: List[int]) -> Tuple[int, int]:
+    x = nim_sum(piles)
+    if not any(p > 0 for p in piles):
+        raise ValueError("No legal moves: all piles are empty")
+    if x == 0:
+        idx = max(range(len(piles)), key=lambda i: piles[i])
+        return idx, 1
+    for i, pile in enumerate(piles):
+        target = pile ^ x
+        if target < pile:
+            remove = pile - target
+            return i, remove
+    idx = max(range(len(piles)), key=lambda i: piles[i])
+    return idx, 1
+
+def apply_move(piles: List[int], pile_idx: int, remove: int) -> None:
+    piles[pile_idx] -= remove
+
+def is_game_over(piles: List[int]) -> bool:
+    return all(p == 0 for p in piles)
+
+def print_piles(piles: List[int]) -> None:
+    parts = [f"[{i}]:{p}" for i, p in enumerate(piles)]
+    print("Piles:", " ".join(parts))
+
+def parse_piles(input_str: str) -> List[int]:
+    parts = input_str.strip().split()
+    if not parts:
+        raise ValueError("Empty pile list")
+    piles: List[int] = []
+    for x in parts:
+        try:
+            n = int(x)
+        except ValueError:
+            raise ValueError(f"Invalid integer in piles: '{x}'")
+        if n < 0:
+            raise ValueError("Pile sizes must be non-negative")
+        piles.append(n)
+    return piles
+
+def human_move(piles: List[int]) -> Tuple[int, int]:
+    while True:
+        try:
+            print_piles(piles)
+            raw = input("Enter 'pile_index remove_count' (e.g. '1 3'): ")
+            if not raw.strip():
+                print("Empty input — try again.")
+                continue
+            parts = raw.strip().split()
+            if len(parts) != 2:
+                print("Enter exactly two integers.")
+                continue
+            a, b = parts
+            i = int(a)
+            r = int(b)
+            if not (0 <= i < len(piles)):
+                print("Invalid pile index. Try again.")
+                continue
+            if r <= 0:
+                print("You must remove at least 1.")
+                continue
+            if r > piles[i]:
+                print(f"Pile {i} only has {piles[i]} stones.")
+                continue
+            return i, r
+        except ValueError:
+            print("Invalid input. Use two integers like: 1 2")
+
+def game_loop(piles: List[int], players: Tuple[str, str]) -> str:
+    turn = 0
+    while True:
+        if is_game_over(piles):
+            winner = f"Player {1 - turn}"
+            return winner
+        current = players[turn]
+        if current == 'human':
+            pile_idx, remove = human_move(piles)
+            apply_move(piles, pile_idx, remove)
+        elif current == 'ai':
+            pile_idx, remove = ai_move_optimal(piles)
+            apply_move(piles, pile_idx, remove)
+        else:
+            raise ValueError(f"Unknown player type: {current}")
+        turn = 1 - turn
+
+def choose_mode() -> Tuple[Tuple[str, str], List[int]]:
+    raw_mode = input("Mode (1=H vs AI, 2=H vs H, 3=AI vs AI) [default 1]: ")
+    mode = raw_mode.strip() or '1'
+    if mode not in ('1', '2', '3'):
+        mode = '1'
+    if mode == '1':
+        players = ('human', 'ai')
+    elif mode == '2':
+        players = ('human', 'human')
+    else:
+        players = ('ai', 'ai')
+    pile_in = input("Enter piles as space-separated integers (press Enter for default 3 4 5): ")
+    if pile_in.strip() == '':
+        piles = [3, 4, 5]
+    else:
+        try:
+            piles = parse_piles(pile_in)
+        except ValueError as e:
+            print(f"Invalid piles input: {e}. Using default [3,4,5].")
+            piles = [3, 4, 5]
+    return players, piles
+
+def main():
+    players, piles = choose_mode()
+    print("Starting piles:")
+    print_piles(piles)
+    winner = game_loop(piles, players)
+    print(f"Game over. {winner} wins!")
+
+if __name__ == '__main__':
+    try:
+        main()
+    except KeyboardInterrupt:
+        sys.exit(0)
